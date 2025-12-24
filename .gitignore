@@ -1,0 +1,11 @@
+# build directories
+build/
+bin/
+out/
+
+# ide files
+.vscode/
+.vs/
+*.user
+*.sln
+*.vcxproj
