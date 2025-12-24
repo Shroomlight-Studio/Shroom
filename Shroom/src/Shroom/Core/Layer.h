@@ -1,10 +1,9 @@
 #pragma once
 
 #include "Shroom/Core/Core.h"
+#include "Shroom/Events/Event.h"
 
 namespace Shroom {
-
-    class Event;
 
     class Layer {
     public:
