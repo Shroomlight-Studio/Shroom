@@ -7,8 +7,7 @@ target_include_directories(Shroom PUBLIC src)
 
 target_link_libraries(Shroom
     PUBLIC
+        glm::glm
         spdlog::spdlog
         SDL3::SDL3
-    PRIVATE
-        Vulkan::Vulkan
 )

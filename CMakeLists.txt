@@ -4,6 +4,9 @@ project(ShroomEngine)
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+# ----- Force Static Build -----
+set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
+
 # ----- Output Settings -----
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/bin)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/bin)
@@ -19,14 +22,16 @@ file(
 include(${CMAKE_CURRENT_BINARY_DIR}/cmake/CPM.cmake)
 
 # ----- Dependencies -----
+# glm
+CPMAddPackage("gh:g-truc/glm#a532f5b")
+
 # spdlog
 CPMAddPackage("gh:gabime/spdlog@1.16.0")
 
 # SDL3
+set(SDL_SHARED OFF CACHE BOOL "" FORCE)
+set(SDL_STATIC ON CACHE BOOL "" FORCE)
 CPMAddPackage("gh:libsdl-org/SDL#bd29d60")
-
-# Vulkan
-CPMAddPackage("gh:KhronosGroup/Vulkan-Headers@1.4.337b")
 
 # ----- Subdirectories -----
 add_subdirectory(Shroom)

@@ -3,12 +3,14 @@
 #include "Shroom/Core/Log.h"
 #include "Shroom/Core/Application.h"
 
-extern void Shroom::CreateApplication();
+extern Shroom::Application* Shroom::CreateApplication();
 
 int main() {
     Shroom::Log::Init();
 
-    Shroom::CreateApplication();
+    Shroom::Application* app = Shroom::CreateApplication();
+
+    app->Run();
 
     Shroom::Log::Shutdown();
 }

@@ -1,6 +1,14 @@
 #include <Shroom.h>
 #include <Shroom/Core/EntryPoint.h>
 
-void Shroom::CreateApplication() {
-    SINFO("Sandbox Application Created!");
+class SandboxApp : public Shroom::Application {
+public:
+    SandboxApp(const Shroom::ApplicationSpecification& spec) : Application(spec) {}
+    virtual ~SandboxApp() = default;
+};
+
+Shroom::Application* Shroom::CreateApplication() {
+    Shroom::ApplicationSpecification spec{};
+    spec.Title = "Shroom Sandbox";
+    return new SandboxApp(spec);
 }

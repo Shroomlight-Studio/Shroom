@@ -6,23 +6,23 @@
 
 #include "Shroom/Core/Memory.h"
 
-#if defined(CODI_DEBUG)
-	#if defined(CODI_PLATFORM_WINDOWS)
-		#define CODI_DEBUGBREAK() __debugbreak()
+#if defined(SHROOM_DEBUG)
+	#if defined(SHROOM_PLATFORM_WINDOWS)
+		#define SHROOM_DEBUGBREAK() __debugbreak()
 	#else
-		#define CODI_DEBUGBREAK() __builtin_trap()
+		#define SHROOM_DEBUGBREAK() __builtin_trap()
 	#endif
 
-	#define CODI_ENABLE_ASSERTS
+	#define SHROOM_ENABLE_ASSERTS
 #else
-	#define CODI_DEBUGBREAK()
-#endif // CODI_DEBUG
+	#define SHROOM_DEBUGBREAK()
+#endif // SHROOM_DEBUG
 
-#define CODI_EXPAND_MACRO(x) x
-#define CODI_STRINGIFY_MACRO(x) #x
+#define SHROOM_EXPAND_MACRO(x) x
+#define SHROOM_STRINGIFY_MACRO(x) #x
 
 #define BIT(x) 1 << x
 
-#define CODI_BIND_EVENT_FN(fn) [this](auto&&... args) -> decltype(auto) { return this->fn(std::forward<decltype(args)>(args)...); }
+#define SHROOM_BIND_EVENT_FN(fn) [this](auto&&... args) -> decltype(auto) { return this->fn(std::forward<decltype(args)>(args)...); }
 
 #include "Shroom/Core/Asserts.h"
