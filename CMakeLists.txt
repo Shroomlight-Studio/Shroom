@@ -28,6 +28,9 @@ CPMAddPackage("gh:g-truc/glm#a532f5b")
 # spdlog
 CPMAddPackage("gh:gabime/spdlog@1.16.0")
 
+# Vulkan-Headers
+CPMAddPackage("gh:KhronosGroup/Vulkan-Headers@1.4.337")
+
 # SDL3
 set(SDL_SHARED OFF CACHE BOOL "" FORCE)
 set(SDL_STATIC ON CACHE BOOL "" FORCE)

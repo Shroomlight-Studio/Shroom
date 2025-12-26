@@ -9,5 +9,6 @@ target_link_libraries(Shroom
     PUBLIC
         glm::glm
         spdlog::spdlog
+        Vulkan-Headers
         SDL3::SDL3
 )
