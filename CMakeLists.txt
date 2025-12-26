@@ -26,7 +26,7 @@ CPMAddPackage("gh:gabime/spdlog@1.16.0")
 CPMAddPackage("gh:libsdl-org/SDL#bd29d60")
 
 # Vulkan
-find_package(Vulkan REQUIRED)
+CPMAddPackage("gh:KhronosGroup/Vulkan-Headers@1.4.337b")
 
 # ----- Subdirectories -----
 add_subdirectory(Shroom)

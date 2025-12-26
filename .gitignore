@@ -9,3 +9,6 @@ out/
 *.user
 *.sln
 *.vcxproj
+
+# garbage
+*.log
