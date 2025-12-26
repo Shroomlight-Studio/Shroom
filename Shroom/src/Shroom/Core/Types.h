@@ -1,7 +1,8 @@
 #pragma once
 
 // string type
-
+#include <string>
+using String = std::string;
 
 // unsigned int types
 
