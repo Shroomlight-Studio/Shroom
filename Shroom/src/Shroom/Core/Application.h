@@ -28,6 +28,8 @@ namespace Shroom {
         void PushLayer(Layer* layer);
         void PushOverlay(Layer* overlay);
 
+        Window& GetWindow() { return *_Window; }
+
         inline static Application& Get() { return *_Instance; }
 
     private:

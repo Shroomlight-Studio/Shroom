@@ -1,7 +1,7 @@
 file(GLOB_RECURSE ENGINE_SOURCES "src/*.cpp")
 file(GLOB_RECURSE ENGINE_HEADERS "src/*.h")
 
-add_library(Shroom STATIC ${ENGINE_SOURCES} ${ENGINE_HEADERS})
+add_library(Shroom STATIC ${ENGINE_SOURCES})
 
 target_include_directories(Shroom PUBLIC src)
 

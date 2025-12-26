@@ -1,5 +1,7 @@
 #include "Application.h"
 
+#include "Shroom/Renderer/Renderer.h"
+
 namespace Shroom {
 
     Application* Application::_Instance = nullptr;
@@ -18,12 +20,14 @@ namespace Shroom {
         _Window->SetEventCallbackFunction(SHROOM_BIND_EVENT_FN(Application::OnEvent));
 
         // init subsystems
+        Renderer::Init();
 
         _Running = true;
     }
 
     Application::~Application() {
         // shutdown subsystems
+        Renderer::Shutdown();
 
         // destroy the window
         _Window.reset();
@@ -34,8 +38,6 @@ namespace Shroom {
             const float64 time = _Clock.Elapsed();
             const float64 deltatime = time - _LastFrameTime;
             _LastFrameTime = time;
-
-            SINFO("deltatime = {0}", deltatime);
 
             for (Layer* l : _LayerStack)
                 l->OnUpdate(deltatime);
