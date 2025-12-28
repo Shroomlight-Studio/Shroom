@@ -8,9 +8,9 @@ namespace Shroom {
     
     namespace {
         static VKAPI_ATTR VkBool32 VKAPI_CALL DebugCallback(
-            VkDebugUtilsMessageSeverityFlagBitsEXT,
-            VkDebugUtilsMessageTypeFlagsEXT,
-            const VkDebugUtilsMessengerCallbackDataEXT* data,
+            vk::DebugUtilsMessageSeverityFlagBitsEXT,
+            vk::DebugUtilsMessageTypeFlagsEXT,
+            const vk::DebugUtilsMessengerCallbackDataEXT* data,
             void*
         ) {
             SCORE_ERROR("[VULKAN] {}", data->pMessage);
@@ -31,9 +31,12 @@ namespace Shroom {
     
         CreateInstance();
         CreateSurface();
+        PickPhysicalDevice();
     }
 
     void VulkanRendererAPI::Shutdown() {
+        _PhysicalDevice.reset();
+
         _Surface.reset();
 
         _Instance.reset();
@@ -68,12 +71,14 @@ namespace Shroom {
         _Instance.emplace(*context, createInfo);
 
         if (_Spec.EnableValidation) {
-            vk::DebugUtilsMessengerCreateInfoEXT dbg{};
-            dbg.messageSeverity = vk::DebugUtilsMessageSeverityFlagBitsEXT::eWarning |
-                                    vk::DebugUtilsMessageSeverityFlagBitsEXT::eError,
-                                    vk::DebugUtilsMessageTypeFlagBitsEXT::eGeneral |
-                                    vk::DebugUtilsMessageTypeFlagBitsEXT::eValidation;
-            dbg.setPfnUserCallback(DebugCallback);
+            vk::DebugUtilsMessengerCreateInfoEXT dbg{
+                {},
+                vk::DebugUtilsMessageSeverityFlagBitsEXT::eWarning |
+                vk::DebugUtilsMessageSeverityFlagBitsEXT::eError,
+                vk::DebugUtilsMessageTypeFlagBitsEXT::eGeneral |
+                vk::DebugUtilsMessageTypeFlagBitsEXT::eValidation,
+                DebugCallback
+            };
 
             _Debug.emplace(*_Instance, *dbg);
         }
@@ -89,6 +94,16 @@ namespace Shroom {
             SCORE_ASSERT(false, "Failed to create Vulkan surface!");
         
         _Surface.emplace(*_Instance, surface);
+    }
+
+    void VulkanRendererAPI::PickPhysicalDevice() {
+        const auto physicalDevices = _Instance->enumeratePhysicalDevices();
+        SCORE_ASSERT(!physicalDevices.empty(), "No Vulkan devices found!");
+
+        _PhysicalDevice.emplace(*_Instance, *physicalDevices.front());
+        const auto rawDeviceName = _PhysicalDevice->getProperties().deviceName;
+        String deviceName(rawDeviceName.data(), strlen(rawDeviceName));
+        SCORE_TRACE("Picked Vulkan device: {0}", deviceName);
     }
 
 } // namespace Shroom
