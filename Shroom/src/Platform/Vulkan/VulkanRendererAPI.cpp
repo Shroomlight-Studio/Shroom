@@ -33,6 +33,9 @@ namespace Shroom {
         CreateSurface();
         PickPhysicalDevice();
         CreateDevice();
+        CreateCommandPool();
+        AllocateCommandBuffers();
+        InitSyncObjects();
     }
 
     void VulkanRendererAPI::Shutdown() {
@@ -129,6 +132,29 @@ namespace Shroom {
         _Device.emplace(*_PhysicalDevice, createInfo);
 
         _GraphicsQueue.emplace(*_Device, _GraphicsQueueFamilyIndex, 0);
+    }
+
+    void VulkanRendererAPI::CreateCommandPool() {
+        vk::CommandPoolCreateInfo createInfo{};
+        createInfo.queueFamilyIndex = _GraphicsQueueFamilyIndex;
+        createInfo.flags = vk::CommandPoolCreateFlagBits::eResetCommandBuffer;
+        
+        _CommandPool.emplace(*_Device, createInfo);
+    }
+
+    void VulkanRendererAPI::AllocateCommandBuffers() {
+        vk::CommandBufferAllocateInfo allocateInfo{};
+        allocateInfo.commandPool = *_CommandPool;
+        allocateInfo.commandBufferCount = 1;
+
+        _CommandBuffers = _Device->allocateCommandBuffers(allocateInfo);
+    }
+
+    void VulkanRendererAPI::InitSyncObjects() {
+        vk::FenceCreateInfo createInfo{};
+        createInfo.flags = vk::FenceCreateFlagBits::eSignaled;
+
+        _Fence.emplace(*_Device, createInfo);
     }
 
 } // namespace Shroom

@@ -20,6 +20,9 @@ namespace Shroom {
         void CreateSurface();
         void PickPhysicalDevice();
         void CreateDevice();
+        void CreateCommandPool();
+        void AllocateCommandBuffers();
+        void InitSyncObjects();
 
     private:
         RendererAPISpecification _Spec;
@@ -38,6 +41,10 @@ namespace Shroom {
         std::optional<vk::raii::Queue> _GraphicsQueue{};
 
         uint32 _PresentQueueFamilyIndex;
+
+        std::optional<vk::raii::CommandPool> _CommandPool{};
+        std::vector<vk::raii::CommandBuffer> _CommandBuffers{};
+        std::optional<vk::raii::Fence> _Fence{};
     };
     
 } // namespace Shroom
