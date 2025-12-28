@@ -32,13 +32,13 @@ namespace Shroom {
         CreateInstance();
         CreateSurface();
         PickPhysicalDevice();
+        CreateDevice();
     }
 
     void VulkanRendererAPI::Shutdown() {
+        _Device.reset();
         _PhysicalDevice.reset();
-
         _Surface.reset();
-
         _Instance.reset();
     }
 
@@ -104,6 +104,29 @@ namespace Shroom {
         const auto rawDeviceName = _PhysicalDevice->getProperties().deviceName;
         String deviceName(rawDeviceName.data(), strlen(rawDeviceName));
         SCORE_TRACE("Picked Vulkan device: {0}", deviceName);
+
+        // for now we hardcode those values
+        _GraphicsQueueFamilyIndex = 0;
+        _PresentQueueFamilyIndex = 0;
+    }
+
+    void VulkanRendererAPI::CreateDevice() {
+        // graphics queue
+        vk::DeviceQueueCreateInfo graphicsInfo{};
+        graphicsInfo.queueFamilyIndex = _GraphicsQueueFamilyIndex;
+        std::array<float32, 1> queuePriorities{1.0f};
+        graphicsInfo.setQueuePriorities(queuePriorities);
+
+        // device
+        vk::DeviceCreateInfo createInfo{};
+        
+        std::array queueInfos{graphicsInfo};
+        createInfo.setQueueCreateInfos(queueInfos);
+        
+        std::array<const char* const, 1> enabledExtensions{VK_KHR_SWAPCHAIN_EXTENSION_NAME};
+        createInfo.setPpEnabledExtensionNames(enabledExtensions.data());
+
+        _Device.emplace(*_PhysicalDevice, createInfo);
     }
 
 } // namespace Shroom

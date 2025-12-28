@@ -19,6 +19,7 @@ namespace Shroom {
         void CreateInstance();
         void CreateSurface();
         void PickPhysicalDevice();
+        void CreateDevice();
 
     private:
         RendererAPISpecification _Spec;
@@ -29,7 +30,11 @@ namespace Shroom {
         std::optional<vk::raii::DebugUtilsMessengerEXT> _Debug{nullptr};
 
         std::optional<vk::raii::SurfaceKHR> _Surface;
+
         std::optional<vk::raii::PhysicalDevice> _PhysicalDevice;
+        uint32 _GraphicsQueueFamilyIndex;
+        uint32 _PresentQueueFamilyIndex;
+        std::optional<vk::raii::Device> _Device;
     };
     
 } // namespace Shroom
