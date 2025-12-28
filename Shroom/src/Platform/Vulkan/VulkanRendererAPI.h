@@ -26,15 +26,18 @@ namespace Shroom {
 
        std::optional<vk::raii::Context> context{};
        
-        std::optional<vk::raii::Instance> _Instance;
+        std::optional<vk::raii::Instance> _Instance{};
         std::optional<vk::raii::DebugUtilsMessengerEXT> _Debug{nullptr};
 
-        std::optional<vk::raii::SurfaceKHR> _Surface;
+        std::optional<vk::raii::SurfaceKHR> _Surface{};
 
-        std::optional<vk::raii::PhysicalDevice> _PhysicalDevice;
+        std::optional<vk::raii::PhysicalDevice> _PhysicalDevice{};
+        std::optional<vk::raii::Device> _Device{};
+
         uint32 _GraphicsQueueFamilyIndex;
+        std::optional<vk::raii::Queue> _GraphicsQueue{};
+
         uint32 _PresentQueueFamilyIndex;
-        std::optional<vk::raii::Device> _Device;
     };
     
 } // namespace Shroom

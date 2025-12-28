@@ -127,6 +127,8 @@ namespace Shroom {
         createInfo.setPpEnabledExtensionNames(enabledExtensions.data());
 
         _Device.emplace(*_PhysicalDevice, createInfo);
+
+        _GraphicsQueue.emplace(*_Device, _GraphicsQueueFamilyIndex, 0);
     }
 
 } // namespace Shroom
