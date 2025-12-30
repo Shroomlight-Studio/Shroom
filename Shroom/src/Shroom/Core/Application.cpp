@@ -39,8 +39,12 @@ namespace Shroom {
             const float64 deltatime = time - _LastFrameTime;
             _LastFrameTime = time;
 
+            Renderer::BeginFrame();
+
             for (Layer* l : _LayerStack)
                 l->OnUpdate(deltatime);
+
+            Renderer::EndFrame();
 
             _Window->OnUpdate();
         }
@@ -73,7 +77,7 @@ namespace Shroom {
     }
 
     bool Application::OnWindowResize(WindowResizeEvent &e) {
-        SCORE_WARN("Application Window Resized! ({0}, {1})", e.GetWidth(), e.GetHeight());
+        Renderer::RecreateSwapchain(e.GetWidth(), e.GetHeight());
         return false;
     }
 

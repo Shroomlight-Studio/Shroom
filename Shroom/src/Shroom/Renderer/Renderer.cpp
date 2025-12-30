@@ -8,6 +8,7 @@ namespace Shroom {
    void Renderer::Init() {
         SCORE_INFO("Initializing Renderer...");
         RendererAPISpecification spec{};
+        spec.EnableValidation = true;
         _RAPI = RendererAPI::Create(spec);
         _RAPI->Init();
     }
@@ -18,13 +19,16 @@ namespace Shroom {
     }
 
     void Renderer::BeginFrame() {
-        
+        _FrameSkipped = !_RAPI->BeginFrame();
     }
 
     void Renderer::EndFrame() {
         if (_FrameSkipped) return;
-        
+        _RAPI->EndFrame();
     }
 
+    void Renderer::RecreateSwapchain(uint32 width, uint32 height) {
+        _RAPI->RecreateSwapchain(width, height);
+    }
 
 } // namespace Shroom

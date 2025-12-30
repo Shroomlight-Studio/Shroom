@@ -13,6 +13,8 @@ namespace Shroom {
         static void BeginFrame();
         static void EndFrame();
 
+        static void RecreateSwapchain(uint32 width, uint32 height);
+
         inline static RendererAPI& GetAPI() { return *_RAPI; }
         
     private:

@@ -22,6 +22,11 @@ namespace Shroom {
         virtual void Init() = 0;
         virtual void Shutdown() = 0;
 
+        virtual bool BeginFrame() = 0;
+        virtual void EndFrame() = 0;
+
+        virtual void RecreateSwapchain(uint32 width, uint32 height) = 0;
+
         inline static API GetAPI() { return _API; }
 
         static Owned<RendererAPI> Create(const RendererAPISpecification& spec);
