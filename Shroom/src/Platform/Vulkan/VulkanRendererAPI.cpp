@@ -140,17 +140,21 @@ namespace Shroom {
 
         constexpr vk::ClearColorValue clearColor{1.0f, 0.0f, 0.0f, 1.0f};
 
-        const vk::ImageMemoryBarrier barrier(
-            vk::AccessFlagBits::eMemoryRead, vk::AccessFlagBits::eTransferWrite,
-            vk::ImageLayout::eUndefined, vk::ImageLayout::eTransferDstOptimal,
-            VK_QUEUE_FAMILY_IGNORED, VK_QUEUE_FAMILY_IGNORED,
-            swapchainImage, vk::ImageSubresourceRange{vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1}
+        const vk::ImageMemoryBarrier2 barrier(
+            vk::PipelineStageFlagBits2::eTransfer,
+            vk::AccessFlagBits2::eMemoryRead,
+            vk::PipelineStageFlagBits2::eTransfer,
+            vk::AccessFlagBits2::eTransferWrite,
+            vk::ImageLayout::eUndefined,
+            vk::ImageLayout::eTransferDstOptimal,
+            VK_QUEUE_FAMILY_IGNORED,
+            VK_QUEUE_FAMILY_IGNORED,
+            swapchainImage,
+            vk::ImageSubresourceRange{vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1}
         );
-        frame.CommandBuffer.pipelineBarrier(
-            vk::PipelineStageFlagBits::eTransfer, vk::PipelineStageFlagBits::eTransfer,
-            vk::DependencyFlags{}, nullptr, nullptr,
-            barrier
-        );
+        vk::DependencyInfo dependencyInfo{};
+        dependencyInfo.setImageMemoryBarriers(barrier);
+        frame.CommandBuffer.pipelineBarrier2(dependencyInfo);
 
         frame.CommandBuffer.clearColorImage(
             swapchainImage, 
@@ -159,17 +163,21 @@ namespace Shroom {
             vk::ImageSubresourceRange{vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1}
         );
         
-        const vk::ImageMemoryBarrier barrier2(
-            vk::AccessFlagBits::eTransferWrite, vk::AccessFlagBits::eMemoryRead,
-            vk::ImageLayout::eTransferDstOptimal, vk::ImageLayout::ePresentSrcKHR,
-            VK_QUEUE_FAMILY_IGNORED, VK_QUEUE_FAMILY_IGNORED,
-            swapchainImage, vk::ImageSubresourceRange{vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1}
+        const vk::ImageMemoryBarrier2 barrier2(
+            vk::PipelineStageFlagBits2::eTransfer,
+            vk::AccessFlagBits2::eTransferWrite,
+            vk::PipelineStageFlagBits2::eTransfer,
+            vk::AccessFlagBits2::eMemoryRead,
+            vk::ImageLayout::eTransferDstOptimal,
+            vk::ImageLayout::ePresentSrcKHR,
+            VK_QUEUE_FAMILY_IGNORED,
+            VK_QUEUE_FAMILY_IGNORED,
+            swapchainImage,
+            vk::ImageSubresourceRange{vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1}
         );
-        frame.CommandBuffer.pipelineBarrier(
-            vk::PipelineStageFlagBits::eTransfer, vk::PipelineStageFlagBits::eTransfer,
-            vk::DependencyFlags{}, nullptr, nullptr,
-            barrier2
-        );
+        vk::DependencyInfo dependencyInfo2{};
+        dependencyInfo2.setImageMemoryBarriers(barrier2);
+        frame.CommandBuffer.pipelineBarrier2(dependencyInfo2);
     }
 
     void VulkanRendererAPI::RecreateSwapchain(uint32 width, uint32 height) {
@@ -336,9 +344,13 @@ namespace Shroom {
         createInfo.setQueueCreateInfos(queueInfos);
         
         std::array<const char* const, 1> enabledExtensions{VK_KHR_SWAPCHAIN_EXTENSION_NAME};
-        createInfo.enabledExtensionCount = 1;
-        createInfo.ppEnabledExtensionNames = enabledExtensions.data();
+        createInfo.setPEnabledExtensionNames(enabledExtensions);
 
+        // enable sync2
+        vk::PhysicalDeviceSynchronization2Features sync2Features{};
+        sync2Features.setSynchronization2(VK_TRUE);
+        createInfo.setPNext(&sync2Features);
+        
         _Device.emplace(*_PhysicalDevice, createInfo);
 
         _GraphicsQueue.emplace(*_Device, _GraphicsQueueFamilyIndex, 0);
