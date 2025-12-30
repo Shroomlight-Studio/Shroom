@@ -34,6 +34,8 @@ CPMAddPackage("gh:KhronosGroup/Vulkan-Headers@1.4.337")
 # SDL3
 set(SDL_SHARED OFF CACHE BOOL "" FORCE)
 set(SDL_STATIC ON CACHE BOOL "" FORCE)
+set(SDL_RENDER OFF CACHE BOOL "" FORCE)
+set(SDL_GPU OFF CACHE BOOL "" FORCE)
 CPMAddPackage("gh:libsdl-org/SDL#bd29d60")
 
 # ----- Subdirectories -----
