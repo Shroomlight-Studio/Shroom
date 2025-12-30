@@ -4,11 +4,6 @@
 
 namespace Shroom {
 
-    struct RendererAPISpecification {
-        bool EnableValidation = false;
-        uint32 FramesInFlight = 2;
-    };
-
     class RendererAPI {
     public:
         enum class API {
@@ -25,11 +20,12 @@ namespace Shroom {
         virtual bool BeginFrame() = 0;
         virtual void EndFrame() = 0;
 
+        virtual void Clear() = 0;
         virtual void RecreateSwapchain(uint32 width, uint32 height) = 0;
 
         inline static API GetAPI() { return _API; }
 
-        static Owned<RendererAPI> Create(const RendererAPISpecification& spec);
+        static Owned<RendererAPI> Create();
 
     private:
         static API _API;

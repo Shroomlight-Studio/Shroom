@@ -40,6 +40,7 @@ namespace Shroom {
             _LastFrameTime = time;
 
             Renderer::BeginFrame();
+            Renderer::Clear();
 
             for (Layer* l : _LayerStack)
                 l->OnUpdate(deltatime);

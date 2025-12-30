@@ -65,8 +65,6 @@ namespace Shroom {
             return VK_FALSE;
         }
     }
-
-    VulkanRendererAPI::VulkanRendererAPI(const RendererAPISpecification& spec) : _Spec(spec) {}
         
     void VulkanRendererAPI::Init() {
         SCORE_INFO("Initializing Vulkan Renderer API...");
@@ -83,8 +81,7 @@ namespace Shroom {
         PickQueueFamilies();
         CreateDevice();
         CreateCommandPool();
-        AllocateCommandBuffers();
-        InitSyncObjects();
+        InitFrames();
 
         RecreateSwapchain(
             Application::Get().GetWindow().GetWidth(),
@@ -97,21 +94,50 @@ namespace Shroom {
     }
 
     bool VulkanRendererAPI::BeginFrame() { 
-        const vk::Fence fence{*_Fences[0]};
-        auto _ = _Device->waitForFences(fence, VK_TRUE, UINT64_MAX);
-        _Device->resetFences(fence);
+        const VulkanFrame& frame = *_Frames[_FrameIndex];
+        
+        auto _ = _Device->waitForFences(*frame.Fence, VK_TRUE, UINT64_MAX);
+        _Device->resetFences(*frame.Fence);
 
-        auto[acquireResult,imageIndex] = _Swapchain->acquireNextImage(UINT64_MAX, _ImageAvailableSemaphores[0], nullptr);
+        auto[acquireResult,imageIndex] = _Swapchain->acquireNextImage(UINT64_MAX, frame.ImageAvailableSemaphore, nullptr);
         _CurrentSwapchainImageIndex = imageIndex;
+
+        return true;
+    }
+
+    void VulkanRendererAPI::EndFrame() {
+        const VulkanFrame& frame = *_Frames[_FrameIndex];
+        
+        frame.CommandBuffer.end();
+
+        vk::SubmitInfo submitInfo{};
+        submitInfo.setCommandBuffers(*frame.CommandBuffer);
+        submitInfo.setWaitSemaphores(*frame.ImageAvailableSemaphore);
+        submitInfo.setSignalSemaphores(*frame.RenderFinishedSemaphore);
+        const vk::PipelineStageFlags waitStage = vk::PipelineStageFlagBits::eTransfer;
+        submitInfo.setWaitDstStageMask(waitStage);
+
+        _GraphicsQueue->submit(submitInfo, *frame.Fence);
+
+        vk::PresentInfoKHR presentInfo{};
+        presentInfo.setSwapchains(**_Swapchain);
+        presentInfo.setImageIndices(_CurrentSwapchainImageIndex);
+        presentInfo.setWaitSemaphores(*frame.RenderFinishedSemaphore);
+
+        auto _ = _GraphicsQueue->presentKHR(presentInfo);
+
+        _FrameIndex = (_FrameIndex + 1) % IN_FLIGHT_FRAME_COUNT;
+    }
+    
+    void VulkanRendererAPI::Clear() {
+        const VulkanFrame& frame = *_Frames[_FrameIndex];
         const auto& swapchainImage = _SwapchainImages[_CurrentSwapchainImageIndex];
 
-        vk::raii::CommandBuffer& commandBuffer = _CommandBuffers[0];
-        commandBuffer.reset();
+        frame.CommandBuffer.reset();
         vk::CommandBufferBeginInfo beginInfo{};
         beginInfo.flags = vk::CommandBufferUsageFlagBits::eOneTimeSubmit;
-        commandBuffer.begin(beginInfo);
+        frame.CommandBuffer.begin(beginInfo);
 
-        
         constexpr vk::ClearColorValue clearColor{1.0f, 0.0f, 0.0f, 1.0f};
 
         const vk::ImageMemoryBarrier barrier(
@@ -120,13 +146,13 @@ namespace Shroom {
             VK_QUEUE_FAMILY_IGNORED, VK_QUEUE_FAMILY_IGNORED,
             swapchainImage, vk::ImageSubresourceRange{vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1}
         );
-        commandBuffer.pipelineBarrier(
+        frame.CommandBuffer.pipelineBarrier(
             vk::PipelineStageFlagBits::eTransfer, vk::PipelineStageFlagBits::eTransfer,
             vk::DependencyFlags{}, nullptr, nullptr,
             barrier
         );
 
-        commandBuffer.clearColorImage(
+        frame.CommandBuffer.clearColorImage(
             swapchainImage, 
             vk::ImageLayout::eTransferDstOptimal, 
             clearColor,
@@ -139,36 +165,63 @@ namespace Shroom {
             VK_QUEUE_FAMILY_IGNORED, VK_QUEUE_FAMILY_IGNORED,
             swapchainImage, vk::ImageSubresourceRange{vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1}
         );
-        commandBuffer.pipelineBarrier(
+        frame.CommandBuffer.pipelineBarrier(
             vk::PipelineStageFlagBits::eTransfer, vk::PipelineStageFlagBits::eTransfer,
             vk::DependencyFlags{}, nullptr, nullptr,
             barrier2
         );
-
-        return true;
     }
 
-    void VulkanRendererAPI::EndFrame() {
-        const vk::Fence fence{*_Fences[0]};
-        vk::raii::CommandBuffer& commandBuffer = _CommandBuffers[0];
+    void VulkanRendererAPI::RecreateSwapchain(uint32 width, uint32 height) {
+        // prevent minimized window
+        if (width == 0 || height == 0) return; 
 
-        commandBuffer.end();
+        vk::SurfaceCapabilitiesKHR surfaceCapabilities = _PhysicalDevice->getSurfaceCapabilitiesKHR(*_Surface);
 
-        vk::SubmitInfo submitInfo{};
-        submitInfo.setCommandBuffers(*commandBuffer);
-        submitInfo.setWaitSemaphores(*_ImageAvailableSemaphores[0]);
-        submitInfo.setSignalSemaphores(*_RenderFinishedSemaphores[0]);
-        const vk::PipelineStageFlags waitStage = vk::PipelineStageFlagBits::eTransfer;
-        submitInfo.setWaitDstStageMask(waitStage);
+        // get extent
+        if (surfaceCapabilities.currentExtent != UINT32_MAX) {
+            _SwapchainExtent = surfaceCapabilities.currentExtent;
+        } else {
+            _SwapchainExtent = vk::Extent2D{
+                std::clamp(width, surfaceCapabilities.minImageExtent.width, surfaceCapabilities.maxImageExtent.width),
+                std::clamp(height, surfaceCapabilities.minImageExtent.height, surfaceCapabilities.maxImageExtent.height)
+            };
+        }
 
-        _GraphicsQueue->submit(submitInfo, fence);
+        // get image count
+        uint32 imageCount = surfaceCapabilities.minImageCount + 1;
+        if (surfaceCapabilities.maxImageCount > 0 && imageCount > surfaceCapabilities.maxImageCount)
+            imageCount = surfaceCapabilities.maxImageCount;
 
-        vk::PresentInfoKHR presentInfo{};
-        presentInfo.setSwapchains(**_Swapchain);
-        presentInfo.setImageIndices(_CurrentSwapchainImageIndex);
-        presentInfo.setWaitSemaphores(*_RenderFinishedSemaphores[0]);
+        // pick surface format
+        auto formats = _PhysicalDevice->getSurfaceFormatsKHR(*_Surface);
+        _ImageFormat = formats[0];
+        for (const auto& format: formats) {
+            if (format.format == vk::Format::eB8G8R8A8Srgb && format.colorSpace == vk::ColorSpaceKHR::eSrgbNonlinear) {
+                _ImageFormat = format;
+                break;
+            }
+        }
 
-        auto _ = _GraphicsQueue->presentKHR(presentInfo);
+        vk::SwapchainCreateInfoKHR createInfo{};
+        createInfo.surface = *_Surface;
+        createInfo.minImageCount = imageCount;
+        createInfo.imageFormat = _ImageFormat.format;
+        createInfo.imageColorSpace = _ImageFormat.colorSpace;
+        createInfo.imageExtent = _SwapchainExtent;
+        createInfo.imageArrayLayers = 1;
+        createInfo.imageUsage = vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eTransferDst;
+        createInfo.imageSharingMode = vk::SharingMode::eExclusive;
+        createInfo.preTransform = surfaceCapabilities.currentTransform;
+        createInfo.compositeAlpha = vk::CompositeAlphaFlagBitsKHR::eOpaque;
+        createInfo.presentMode = vk::PresentModeKHR::eFifo;
+        createInfo.clipped = VK_TRUE;
+        createInfo.oldSwapchain = _Swapchain ? **_Swapchain : VK_NULL_HANDLE;
+
+        vk::raii::SwapchainKHR newSwapchain(*_Device, createInfo);
+
+        _Swapchain = std::move(newSwapchain);
+        _SwapchainImages = _Swapchain->getImages();
     }
 
     void VulkanRendererAPI::CreateInstance() {
@@ -182,7 +235,7 @@ namespace Shroom {
 
         // layers
         std::vector<const char*> layers;
-        if (_Spec.EnableValidation) {
+        if (VULKAN_ENABLE_VALIDATION) {
             layers.push_back("VK_LAYER_KHRONOS_validation");
             extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
         }
@@ -193,7 +246,7 @@ namespace Shroom {
 
         // debug messenger
         vk::DebugUtilsMessengerCreateInfoEXT debugInfo{};
-        if (_Spec.EnableValidation) {
+        if (VULKAN_ENABLE_VALIDATION) {
             debugInfo = {
                 {},
                 vk::DebugUtilsMessageSeverityFlagBitsEXT::eVerbose |
@@ -216,12 +269,12 @@ namespace Shroom {
         createInfo.enabledExtensionCount = (uint32)extensions.size();
         createInfo.ppEnabledExtensionNames = extensions.data();
 
-        if (_Spec.EnableValidation)
+        if (VULKAN_ENABLE_VALIDATION)
             createInfo.pNext = &debugInfo;
 
         _Instance.emplace(*context, createInfo);
         
-        if (_Spec.EnableValidation)
+        if (VULKAN_ENABLE_VALIDATION)
             _Debug.emplace(*_Instance, debugInfo);
     }
 
@@ -299,79 +352,28 @@ namespace Shroom {
         _CommandPool.emplace(*_Device, createInfo);
     }
 
-    void VulkanRendererAPI::AllocateCommandBuffers() {
+    void VulkanRendererAPI::InitFrames() {
+        // allocate command buffers
         vk::CommandBufferAllocateInfo allocateInfo{};
         allocateInfo.commandPool = *_CommandPool;
-        allocateInfo.commandBufferCount = 1;
+        allocateInfo.level = vk::CommandBufferLevel::ePrimary;
+        allocateInfo.commandBufferCount = IN_FLIGHT_FRAME_COUNT;
+        auto commandBuffers = _Device->allocateCommandBuffers(allocateInfo);
 
-        _CommandBuffers = _Device->allocateCommandBuffers(allocateInfo);
-    }
+        vk::FenceCreateInfo fenceCreateInfo{};
+        fenceCreateInfo.flags = vk::FenceCreateFlagBits::eSignaled;
 
-    void VulkanRendererAPI::InitSyncObjects() {
-        // fences
+        vk::SemaphoreCreateInfo semaphoreCreateInfo{};
 
-        vk::FenceCreateInfo fenceInfo{};
-        fenceInfo.flags = vk::FenceCreateFlagBits::eSignaled;
+        for (uint32 i = 0; i < IN_FLIGHT_FRAME_COUNT; i++) {
 
-        _Fences.emplace_back(*_Device, fenceInfo);
-
-        // sempaphores
-        
-        vk::SemaphoreCreateInfo semaphoreInfo{};
-        _ImageAvailableSemaphores.emplace_back(*_Device, semaphoreInfo);
-        _RenderFinishedSemaphores.emplace_back(*_Device, semaphoreInfo);
-    }
-
-    void VulkanRendererAPI::RecreateSwapchain(uint32 width, uint32 height) {
-        // prevent minimized window
-        if (width == 0 || height == 0) return; 
-
-        vk::SurfaceCapabilitiesKHR surfaceCapabilities = _PhysicalDevice->getSurfaceCapabilitiesKHR(*_Surface);
-
-        // get extent
-        if (surfaceCapabilities.currentExtent != UINT32_MAX) {
-            _SwapchainExtent = surfaceCapabilities.currentExtent;
-        } else {
-            _SwapchainExtent = vk::Extent2D{
-                std::clamp(width, surfaceCapabilities.minImageExtent.width, surfaceCapabilities.maxImageExtent.width),
-                std::clamp(height, surfaceCapabilities.minImageExtent.height, surfaceCapabilities.maxImageExtent.height)
-            };
+            _Frames[i].emplace(
+                std::move(commandBuffers[i]),
+                vk::raii::Semaphore(*_Device, semaphoreCreateInfo),
+                vk::raii::Semaphore(*_Device, semaphoreCreateInfo),
+                vk::raii::Fence(*_Device, fenceCreateInfo)
+            );
         }
-
-        // get image count
-        uint32 imageCount = surfaceCapabilities.minImageCount + 1;
-        if (surfaceCapabilities.maxImageCount > 0 && imageCount > surfaceCapabilities.maxImageCount)
-            imageCount = surfaceCapabilities.maxImageCount;
-
-        // pick surface format
-        auto formats = _PhysicalDevice->getSurfaceFormatsKHR(*_Surface);
-        _ImageFormat = formats[0];
-        for (const auto& format: formats) {
-            if (format.format == vk::Format::eB8G8R8A8Srgb && format.colorSpace == vk::ColorSpaceKHR::eSrgbNonlinear) {
-                _ImageFormat = format;
-                break;
-            }
-        }
-
-        vk::SwapchainCreateInfoKHR createInfo{};
-        createInfo.surface = *_Surface;
-        createInfo.minImageCount = imageCount;
-        createInfo.imageFormat = _ImageFormat.format;
-        createInfo.imageColorSpace = _ImageFormat.colorSpace;
-        createInfo.imageExtent = _SwapchainExtent;
-        createInfo.imageArrayLayers = 1;
-        createInfo.imageUsage = vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eTransferDst;
-        createInfo.imageSharingMode = vk::SharingMode::eExclusive;
-        createInfo.preTransform = surfaceCapabilities.currentTransform;
-        createInfo.compositeAlpha = vk::CompositeAlphaFlagBitsKHR::eOpaque;
-        createInfo.presentMode = vk::PresentModeKHR::eFifo;
-        createInfo.clipped = VK_TRUE;
-        createInfo.oldSwapchain = _Swapchain ? **_Swapchain : VK_NULL_HANDLE;
-
-        vk::raii::SwapchainKHR newSwapchain(*_Device, createInfo);
-
-        _Swapchain = std::move(newSwapchain);
-        _SwapchainImages = _Swapchain->getImages();
     }
 
 } // namespace Shroom

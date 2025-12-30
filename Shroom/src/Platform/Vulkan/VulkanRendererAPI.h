@@ -4,12 +4,16 @@
 #include "Shroom/Renderer/RendererAPI.h"
 
 #include "Platform/Vulkan/VulkanFactory.h"
+#include "Platform/Vulkan/VulkanFrame.h"
 
 namespace Shroom {
 
-    class VulkanRendererAPI : public RendererAPI {
+    constexpr bool VULKAN_ENABLE_VALIDATION = true;
+    constexpr uint32 IN_FLIGHT_FRAME_COUNT = 2;
+
+    class VulkanRendererAPI : public RendererAPI {    
     public:
-        VulkanRendererAPI(const RendererAPISpecification& spec);
+        VulkanRendererAPI() = default;
         virtual ~VulkanRendererAPI() = default;
 
         virtual void Init() override;
@@ -18,6 +22,7 @@ namespace Shroom {
         virtual bool BeginFrame() override;
         virtual void EndFrame() override;
 
+        virtual void Clear() override;
         virtual void RecreateSwapchain(uint32 width, uint32 height) override;
 
     private:
@@ -27,16 +32,13 @@ namespace Shroom {
         void PickQueueFamilies();
         void CreateDevice();
         void CreateCommandPool();
-        void AllocateCommandBuffers();
-        void InitSyncObjects();
+        void InitFrames();
 
     private:
-        RendererAPISpecification _Spec;
-
         std::optional<vk::raii::Context> context{};
        
         std::optional<vk::raii::Instance> _Instance{};
-        std::optional<vk::raii::DebugUtilsMessengerEXT> _Debug{nullptr};
+        std::optional<vk::raii::DebugUtilsMessengerEXT> _Debug = nullptr;
 
         std::optional<vk::raii::SurfaceKHR> _Surface{};
 
@@ -49,11 +51,8 @@ namespace Shroom {
         uint32 _PresentQueueFamilyIndex;
 
         std::optional<vk::raii::CommandPool> _CommandPool{};
-        std::vector<vk::raii::CommandBuffer> _CommandBuffers{};
-
-        std::vector<vk::raii::Fence> _Fences{};
-        std::vector<vk::raii::Semaphore> _ImageAvailableSemaphores{};
-        std::vector<vk::raii::Semaphore> _RenderFinishedSemaphores{};
+        std::array<std::optional<VulkanFrame>, IN_FLIGHT_FRAME_COUNT> _Frames{};
+        uint32 _FrameIndex = 0;
 
         std::optional<vk::raii::SwapchainKHR> _Swapchain{};
         std::vector<vk::Image> _SwapchainImages{};
